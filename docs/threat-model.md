@@ -30,13 +30,14 @@ A VPN isn't magic. Here is what mine does and doesn't do.
 
 ## Attack surface
 
-- **SSH (TCP 22):** restricted to my IP in the security group. Key-only login.
+- **SSH (TCP 22):** currently open to `0.0.0.0/0` in the security group (known issue). Protected by key-based login only. Should be restricted to my IP.
 - **OpenVPN (UDP 1194):** open to the internet by design. Protected by TLS and certificates.
 - **The server OS:** needs regular updates.
 
 ## Mitigations (done / planned)
 
-- [x] SSH restricted to my IP
+- [ ] Restrict SSH to my IP (currently open to the internet)
+- [x] Own admin user, key-based login
 - [x] One certificate per device
 - [ ] fail2ban on SSH
 - [ ] Automatic security updates

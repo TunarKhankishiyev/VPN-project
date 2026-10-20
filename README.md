@@ -50,35 +50,53 @@ The VPN addresses above are just examples. Yours will be assigned by the server.
 
 Short version below. The full step-by-step with commands is in [`docs/setup-steps.md`](docs/setup-steps.md).
 
-1. Launched the EC2 instance (t3.small, Ubuntu 24.04, 16-20 GiB disk).
-2. Security group: SSH (22) only from my own IP, and UDP 1194 open to the world.
+1. Launched the EC2 instance in `us-east-1` (t3.small, Ubuntu 24.04).
+2. Security group: SSH (22) and UDP 1194 for OpenVPN.
 3. Attached an Elastic IP so the address survives stop/start.
-4. Turned off the source/destination check on the instance so it can forward VPN traffic.
-5. SSH'd in, ran `apt update && apt upgrade`, then ran the installer in interactive mode.
-6. Created one client profile per person/device and downloaded the `.ovpn` files with `scp`.
-7. Imported them into OpenVPN Connect and connected.
+4. Turned off the source/destination check so the instance can forward VPN traffic.
+5. Created my own admin user (`tunar`) instead of working as the default `ubuntu` user.
+6. Ran `apt update && apt upgrade`, then the installer in interactive mode.
+7. Created a client profile (`User1`), downloaded the `.ovpn` with `scp`, imported it into OpenVPN Connect.
+
+**The instance: running, t3.small, Elastic IP attached**
+
+![EC2 instance summary](docs/screenshots/01-ec2-instance.png)
+
+**Security group inbound rules**
+
+![Security group inbound rules](docs/screenshots/02-security-group.png)
 
 ## Choices I made, and why
 
 - **PKI mode instead of fingerprint mode:** more to learn, and it lets me revoke a single client without touching the others.
 - **One profile per device (multi-device off):** if a device is lost or a friend stops using it, I revoke just that one.
-- **SSH restricted to my IP:** an open port 22 gets probed by bots within minutes.
+- **Own admin user instead of `ubuntu`:** a small step, but the default username is the first thing bots try.
 - **Default encryption settings:** the script's defaults are modern and safe, and I didn't want to weaken them by guessing.
 - **Clients can see each other: yes.** This is what makes "ping my friend" work. It's also a risk (see below).
 
 ## Testing
 
-Tick marks show what I've actually done so far.
+Ticked = I did it and have a screenshot. Unticked = still to do.
 
-- [x] Server installed and the OpenVPN service starts
+- [x] Server installed, OpenVPN service **active (running)** and **enabled at boot**
 - [x] Client connects with the `.ovpn` profile
-- [ ] Public IP changes to the Elastic IP when connected
+- [x] Public IP changes to the AWS server's IP when connected
 - [ ] Two clients connected at the same time and pinging each other
-- [ ] Rebooted / stopped and started the instance, VPN came back up on its own
-- [ ] Wireshark capture with VPN off vs on (readable vs encrypted)
-- [ ] Revoked a client and confirmed it can no longer connect
+- [ ] Stop/start the instance and confirm the VPN comes back on its own
+- [ ] Wireshark capture with VPN off vs on
+- [ ] Revoke a client and confirm it can no longer connect
 
-Screenshots go in [`docs/screenshots/`](docs/screenshots/). **Blur public IPs, account IDs and key names first.**
+**Service running on the server**
+
+![Service status](docs/screenshots/03-service-status.png)
+
+**Client connected in OpenVPN Connect**
+
+![Client connected](docs/screenshots/04-client-connected.png)
+
+**My public IP while on the VPN: it's an Amazon server in Ashburn, Virginia, not my home connection**
+
+![Public IP check](docs/screenshots/05-public-ip-check.png)
 
 ## Things I learned / problems I hit
 
@@ -86,6 +104,10 @@ Screenshots go in [`docs/screenshots/`](docs/screenshots/). **Blur public IPs, a
 - The installer detects the *private* IP (172.31.x.x). You have to enter the Elastic IP as the public endpoint.
 - A stop/start gives you a new public IP unless you use an Elastic IP, which would silently break every `.ovpn` file.
 - Windows blocks incoming ping by default, so two connected clients can't ping each other until you allow ICMP.
+
+## Known issue: SSH is open to the internet
+
+Look at the security group screenshot: port 22 has source `0.0.0.0/0`, so anyone can try to reach SSH. Login needs my private key (no passwords), but it's still more exposure than I want. This is the first thing I'm fixing: change the SSH rule to **My IP**, then retake the screenshot. I'm leaving it documented here because it's a good example of the gap between "it works" and "it's secure".
 
 ## Risks and what I'd do differently
 
@@ -100,7 +122,8 @@ See [`scripts/hardening.sh`](scripts/hardening.sh):
 
 - [ ] fail2ban for SSH
 - [ ] Automatic security updates (`unattended-upgrades`)
-- [ ] SSH key-only login, no root login (confirm)
+- [ ] Restrict SSH to my IP only (see known issue above)
+- [ ] Confirm SSH key-only login and no root login
 - [ ] Review `server.conf` and explain each setting
 - [ ] Encrypt the EBS volume
 
@@ -114,7 +137,7 @@ See [`scripts/hardening.sh`](scripts/hardening.sh):
 ├── docs/
 │   ├── setup-steps.md      full commands, start to finish
 │   ├── threat-model.md     what this VPN does and doesn't protect
-│   └── screenshots/        sanitized screenshots only
+│   └── screenshots/        5 sanitized screenshots
 ├── configs/
 │   └── README.md           how to share a sanitized server.conf
 └── scripts/

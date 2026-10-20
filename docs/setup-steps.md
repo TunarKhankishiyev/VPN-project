@@ -9,7 +9,7 @@ Everything I did, in order. Replace `YOUR_ELASTIC_IP` with your own address.
 - Key pair: create one and keep the `.pem` file safe (never commit it)
 - Storage: 16-20 GiB gp3
 - Security group:
-  - SSH, TCP 22, source **My IP**
+  - SSH, TCP 22. **Use source "My IP".** (I left mine on 0.0.0.0/0 at first, which is a mistake, see the README's known issue.)
   - Custom UDP, port 1194, source 0.0.0.0/0 (add after launch if the wizard doesn't offer it)
 
 ## 2. After launch
@@ -17,20 +17,35 @@ Everything I did, in order. Replace `YOUR_ELASTIC_IP` with your own address.
 1. **Elastic IP:** EC2 > Elastic IPs > Allocate > Associate with the instance.
 2. **Source/destination check:** EC2 > Instances > select > Actions > Networking > Change source/destination check > Stop.
 
-## 3. Connect over SSH
+## 3. Create your own admin user (optional)
+
+```bash
+sudo adduser --disabled-password --gecos "" tunar
+sudo usermod -aG sudo tunar
+echo "tunar ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/90-tunar
+sudo chmod 440 /etc/sudoers.d/90-tunar
+sudo mkdir -p /home/tunar/.ssh
+sudo cp /home/ubuntu/.ssh/authorized_keys /home/tunar/.ssh/
+sudo chown -R tunar:tunar /home/tunar/.ssh
+sudo chmod 700 /home/tunar/.ssh && sudo chmod 600 /home/tunar/.ssh/authorized_keys
+```
+
+Test `ssh -i VPN.pem tunar@YOUR_ELASTIC_IP` in a new terminal before closing the old session.
+
+## 4. Connect over SSH
 
 ```bash
 chmod 400 VPN.pem          # Mac/Linux only
 ssh -i VPN.pem ubuntu@YOUR_ELASTIC_IP
 ```
 
-## 4. Update the server
+## 5. Update the server
 
 ```bash
 sudo apt update && sudo apt upgrade -y
 ```
 
-## 5. Download and run the installer
+## 6. Download and run the installer
 
 ```bash
 curl -O https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh
@@ -59,7 +74,7 @@ Answers I used:
 
 Then create the first client when the script asks.
 
-## 6. Check the service
+## 7. Check the service
 
 ```bash
 sudo systemctl status openvpn-server@server
@@ -69,27 +84,27 @@ sysctl net.ipv4.ip_forward
 
 Expected: `active (running)`, `enabled`, and `net.ipv4.ip_forward = 1`.
 
-## 7. Add more clients
+## 8. Add more clients
 
 ```bash
-sudo ./openvpn-install.sh client add friend1
+sudo ./openvpn-install.sh client add User2
 # see all options:
 sudo ./openvpn-install.sh client --help
 ```
 
-## 8. Download the profile (run on your own PC, not on the server)
+## 9. Download the profile (run on your own PC, not on the server)
 
 ```bash
-scp -i VPN.pem ubuntu@YOUR_ELASTIC_IP:/home/ubuntu/client1.ovpn .
+scp -i VPN.pem ubuntu@YOUR_ELASTIC_IP:/home/ubuntu/User1.ovpn .
 ```
 
 If the file isn't there, find it with `ls ~/*.ovpn` on the server.
 
-## 9. Connect
+## 10. Connect
 
 Install OpenVPN Connect, import the `.ovpn`, connect. Check your public IP, it should now be the server's.
 
-## 10. Ping between two clients
+## 11. Ping between two clients
 
 Find your VPN address (`10.8.0.x`) with `ipconfig` (Windows) or `ip a` (Linux/Mac), then ping your friend's. If Windows blocks it, in an Administrator PowerShell:
 
@@ -102,6 +117,6 @@ New-NetFirewallRule -DisplayName "Allow ICMPv4" -Protocol ICMPv4 -IcmpType 8 -Ac
 | Problem | Check |
 |---|---|
 | Connects but no internet | source/dest check off, `ip_forward` = 1, NAT rule present |
-| Can't connect at all | UDP 1194 in security group, Elastic IP attached, `grep remote client1.ovpn` matches the IP |
+| Can't connect at all | UDP 1194 in security group, Elastic IP attached, `grep remote User1.ovpn` matches the IP |
 | Worked yesterday, not today | public IP changed after stop/start (no Elastic IP) |
 | Need logs | `sudo journalctl -u openvpn-server@server -n 50` |
