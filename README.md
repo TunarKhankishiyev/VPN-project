@@ -47,7 +47,7 @@ The VPN addresses above are just examples. Yours will be assigned by the server.
 |---|---|
 | Cloud | AWS EC2, `t3.small` (2 vCPU, 2 GiB RAM) |
 | OS | Ubuntu Server 24.04 LTS (x86_64) |
-| VPN | OpenVPN, installed with the [angristan/openvpn-install](https://github.com/angristan/openvpn-install) script |
+| VPN | OpenVPN|
 | Auth | PKI mode (own CA, server cert, one client cert per device) |
 | Protocol / port | UDP 1194 |
 | DNS pushed to clients | Cloudflare (1.1.1.1) |
